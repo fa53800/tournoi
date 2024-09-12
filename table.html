@@ -1,0 +1,237 @@
+<!doctype html>
+<html>
+<head>
+</head>
+<body>
+    <script type="text/javascript" >
+
+        playerSet = [ "Pierre Moreau", "Thomas Gauthier", "Antoine Nicolas", "Axel Blanc",
+"Clément Garcia", "Maël Mercier", "Alexis Chevalier", "Paul Rousseau", "Théo Leroy", "Victor Robert",
+"Louis Richard", "Baptiste Roux", "Sacha Leroy", "Nolan Simon", "Martin Laurent", "Jules Guerin", "Tom Andre",
+"Raphaël David", "Romain Perrin", "Léo Blanc", "Valentin Vincent", "Alexandre Mercier", "Paul Gauthier", "Nicolas Roux", "Tom Guerin", "Lucas Thomas",
+"Clément Henry", "Clément Bernard", "Maël Morel", "Léo Morin", "Benjamin Perrin", "Clément Robert", "Raphaël Muller", "Simon David",
+"Romain Gauthier", "Adrien Mercier", "Clément Lambert", "Robin Clement", "Alexis Bertrand", "Quentin Girard", "Liam Masson", "Adam Robert",
+"Clément Gautier", "Samuel Fontaine", "Martin Simon", "Clément Masson", "Benjamin Roussel", "Alexis Boyer", "Alexis Girard", "Clément Fontaine",
+"Ethan Laurent", "Evan Vincent", "Enzo Moreau", "Samuel Roussel", "Benjamin Mercier", "Benjamin Roux", "Benjamin Muller", "Liam Durand",
+"Romain Gauthier", "Léo Bertrand", "Nolan Perrin", "Arthur David", "Nicolas Boyer", "Robin Roux", "Paul Roux", "Baptiste Perrin",
+"Mathis Lambert", "Axel Fontaine", "Simon Martin", "Yanis Perrin", "Benjamin Roussel", "Maxime Fontaine" ];
+
+       gameSet= [ "Splendor", "Azul", "King Domino", "7 wonders architect", "akkroplis"];
+
+        function Player(name) {
+          this.name = name;
+          this.opponents = [];
+          this.gamesPlayed = [];
+        }
+        Player.prototype.addOpponents = function (players) {
+           for (var player of players ) {
+              if (player.name === this.name) {
+                 continue;
+              }
+              //showDebug(this.name + " ajoute oposant "+ player.name);
+              this.opponents.push(player.name);
+           }
+        };
+
+
+
+  function compute() {
+        document.getElementById("results").innerHTML="";
+        players = [];
+        for (name of playerSet.slice(0,document.getElementById("players").value) ) {
+           players.push(new Player(name) );
+        };
+        games =  gameSet.slice(0,document.getElementById("games").value) ;
+        playerAtTable = document.getElementById("tables").value;
+
+        var finished = false;
+        session=1;
+        maxgameplayed = Math.floor(players.length / playerAtTable);
+        show ("Maximum "+ maxgameplayed + " parties joués en même temps<br/>");
+        played ={};
+        for( const player of players ) {
+           played[player.name]={};
+        }
+
+        while(!finished) { //a chaque session
+              show("<p><b>Session "+session +"<b><br/>");
+              var tables=0;
+              playersAvailableInSession=players.slice();
+              gameThisSession=[];
+
+              essai=0;
+              while(tables < maxgameplayed  && essai < 10) {
+                 essai++;
+                 selectedGame = findgame(playersAvailableInSession, gameThisSession);
+                 //showDebug( "try for  "  +selectedGame +", players disponibles "+playersAvailableInSession.length );
+                 possibleplayers = chooseplayers(playersAvailableInSession, selectedGame);
+
+                // showDebug ("players dispo " +possibleplayers.length + "  <br/>" );
+
+                 //youpi , une table faite
+                 if(possibleplayers.length >= playerAtTable ) {
+                     tablePlayer = possibleplayers.slice(0,playerAtTable) ;
+                     show( "table "+selectedGame+" : ");
+                     //showDebug ("tablePlayer : " +JSON.stringify(tablePlayer) ) ;
+                     for(  const player of tablePlayer ) {
+                       played[player.name][selectedGame] = session;
+                       player.gamesPlayed.push(selectedGame);
+                       player.addOpponents(tablePlayer);
+                       show( player.name +", ");
+                       const index = playersAvailableInSession.indexOf(player);
+                       if (index > -1) {
+                          //showDebug("remove "+ player.name + " du pool de session <br/>");
+                          playersAvailableInSession.splice(index, 1); // 2nd parameter means remove one item only
+                       }
+                     }
+                     show( "<br/>");
+                     tables++;
+                     gameThisSession.push(selectedGame);
+                 }
+              }
+              show("</p>");
+              session++;
+              if (tables == 0) //ameliorer condition d'arret
+                finished=true;
+        }
+
+
+
+        //verification
+         show("<p><b>Vérification<b><br/>");
+         for( const player in played) {
+               var allplayed = Object.keys(played[player]).length == games.length;
+               if (allplayed) {
+                  showPass(player + " a joué à tous les jeux");
+               }else {
+                  showWarning( player + " a joué à seulement" + JSON.stringify(played[player]) );
+               }
+         }
+       }
+
+    //pour le jeu dans jeux avec le moins de joueurs (en cas d'égalité celui le moins joué a cette session)
+    function findgame(playersAvailableInSession, gameThisSession) {
+        var gameplayer= {};
+        for( const g of games ) { //init
+           gameplayer[g]=0;
+        }
+
+        for ( p of playersAvailableInSession ) {
+            for ( g of p.gamesPlayed) {
+              gameplayer[g]++;
+            }
+        }
+
+        minjoueur = playersAvailableInSession.length +1;
+        mingame = games[0];
+
+        for( const gp in gameplayer ) { //init
+           if (gameplayer[gp] < minjoueur) {
+              mingame= gp;
+              minjoueur = gameplayer[gp];
+           } else if (gameplayer[gp] === minjoueur) {
+            //alors le moins joué à cette session
+             maxplayed = gameThisSession.reduce( (result, game) =>  game === mingame ? result +1 : result , 0);
+             gpplayed = gameThisSession.reduce( (result, game) =>  game === gp ? result +1 : result , 0);
+             if (gpplayed< maxplayed
+             || (gpplayed == maxplayed && Math.random()>0.5 ) ) { //un peu d'aleatoire en cas d'égalité
+                mingame = gp;
+             }
+           }
+        }
+        return mingame;
+    }
+
+    function chooseplayers(playersAvailableInSession, selectedGame) {
+         preference = [];
+         selectedpreference={ forte:[], faible:[], nulle : [], score:0} ;
+         selectedjoueur = "";
+         bestscore=0;
+         iterateur = playersAvailableInSession.length;
+         playersorted = playersAvailableInSession
+            .filter(p=>!p.gamesPlayed.includes(selectedGame));
+         if ( document.getElementById("shuffle").checked ) {
+            playersorted = playersorted.sort((a,b) =>0.5 - Math.random());
+         }
+         for (player of playersorted ) {
+
+             preference[player]  = { forte:[], faible:[], nulle : [], score:0} ;
+
+             for (opositeplayer of playersorted ) {
+                if( player === opositeplayer  )
+                        continue; //lui-meme, niet!
+                nbrencontre= player.opponents.filter(o => o ===opositeplayer).length;
+                if (nbrencontre==0) {
+                     preference[player].forte.push(opositeplayer);
+                } else if (nbrencontre==1) {
+                     preference[player].faible.push(opositeplayer);
+                } else {
+                     preference[player].nulle.push(opositeplayer);
+                }
+             }
+
+             if(preference[player].forte.length >= playerAtTable-1 ) {
+               preference[player].forte.push(player);
+               return preference[player].forte;
+             } else {
+                   score = preference[player].forte.length *iterateur*iterateur+
+                    preference[player].faible.length *iterateur+
+                    preference[player].nulle.length ;
+                    if (score > bestscore) {
+                         bestscore =  score;
+                         selectedpreference = preference[player];
+                         selectedjoueur= player;
+                    }
+             }
+         }
+
+         //le meilleur score
+         selectedTable=[];
+         selectedTable.push(selectedjoueur);
+         selectedTable.push(selectedpreference.forte);
+         //todo completer
+         var j=0;
+         for (i=selectedTable.length ;i<= playerAtTable ; i++)  {
+              if (selectedpreference.faible.length == j) break; //plus de préférence moyenne
+              selectedTable.push(selectedpreference.faible[j]);
+              j++;
+         }
+         var j=0;
+         for (i=selectedTable.length ;i<= playerAtTable ; i++)  {
+              if (selectedpreference.nulle.length == j) break; //plus de préférence nulle
+              selectedTable.push(selectedpreference.nulle[j]);
+              j++;
+         }
+         return selectedTable;
+    }
+
+    function showPass(text){
+         show ("<span style='color:green' >"+ text +"</span><br/>");
+        }
+
+    function showWarning(text){
+     show ("<span style='color:red' >"+ text +"</span><br/>");
+    }
+
+    function showDebug(text){
+     show ("<span style='color:gray' >"+ text +"</span><br/>");
+    }
+    function show(text) {
+        elem = document.getElementById("results");
+        elem.insertAdjacentHTML( 'beforeend', text);
+    }
+
+    </script>
+<div id="param" style="float:left;width:50%; text-align:center">
+   Nombres de jouers (nom inventés) <input id="players" name="players" placeholder="nombre de joueurs" type ="text"/><br/>
+   Nombres de joueurs par tables <input id="tables" name="tables" placeholder="nombre de joueurs par table" type ="text"/><br/>
+   Nombres de jeux à jouer <input id="games" name="games" placeholder="nombre de jeux" type ="text"/><br>
+   Maximiser le nombre d'adversaires ( tournoi rallongé) <input id="shuffle" name="shuffle"  type="checkbox"/><br>
+    <button onclick="compute();" > Calculer</button>
+</div>
+<div id="results" style="float:left;width:50%;">
+les sessions de jeu : <br/>
+</div>
+
+</body>
+</html>
