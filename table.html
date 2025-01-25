@@ -99,12 +99,13 @@
 
         //verification
          show("<p><b>Vérification<b><br/>");
-         for( const player in played) {
-               var allplayed = Object.keys(played[player]).length == games.length;
+         for( const player of players) {
+               var allplayed = player.gamesPlayed.length == games.length;
                if (allplayed) {
-                  showPass(player + " a joué à tous les jeux");
+                  uniqOpponants = new Set(player.opponents);
+                  showPass(player.name + " a joué à tous les jeux &nbsp;&nbsp;&nbsp; avec "+ uniqOpponants.size +" adversaires différents");
                }else {
-                  showWarning( player + " a joué à seulement" + JSON.stringify(played[player]) );
+                  showWarning( player.name + " a joué à seulement" + JSON.stringify(player.gamesPlayed) );
                }
          }
        }
